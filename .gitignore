@@ -1,0 +1,14 @@
+node_modules/
+dist/
+uploads/
+storage/
+*.wav
+*.mp3
+*.mp4
+*.m4a
+*.mov
+*.avi
+*.mkv
+*.webm
+.env
+keytest.js

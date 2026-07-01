@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Notetaker</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f9f8f6;
+  --surface: #ffffff;
+  --surface-2: #f4f3f0;
+  --border: #e8e6e1;
+  --border-strong: #d4d1cb;
+  --text: #1a1916;
+  --text-2: #4a4844;
+  --text-3: #8a8784;
+  --accent: #1a1916;
+  --accent-soft: #f0efe9;
+  --green: #16a34a;
+  --green-bg: #f0fdf4;
+  --red: #dc2626;
+  --red-bg: #fef2f2;
+  --gold: #92730a;
+  --gold-bg: #fffbeb;
+  --blue: #2563eb;
+  --blue-bg: #eff6ff;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-lg: 14px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+html, body { height: 100%; background: var(--bg); }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+/* ── LAYOUT ── */
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.logo-icon {
+  width: 28px; height: 28px;
+  background: var(--text);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.logo-icon svg { width: 14px; height: 14px; stroke: #fff; stroke-width: 2.2; fill: none; }
+.logo-text { font-size: 14px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
+
+.nav { padding: 12px 10px; flex: 1; }
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  border: none; background: none;
+  width: 100%; text-align: left;
+  font-family: inherit;
+  transition: background 0.12s, color 0.12s;
+}
+.nav-item svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+.nav-item:hover { background: var(--surface-2); color: var(--text); }
+.nav-item.active { background: var(--accent-soft); color: var(--text); }
+
+.history-list-sidebar {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 10px 12px;
+}
+.history-list-sidebar::-webkit-scrollbar { width: 4px; }
+.history-list-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.history-label-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 10px 6px;
+}
+.history-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.history-viewall {
+  font-size: 10.5px; font-weight: 600; color: var(--text-3);
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  padding: 0; transition: color 0.12s;
+}
+.history-viewall:hover { color: var(--text); }
+
+.history-entry {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.history-entry:hover { background: var(--surface-2); }
+.history-entry.active { background: var(--accent-soft); }
+.history-entry-main { flex: 1; min-width: 0; }
+.history-entry-name {
+  font-size: 12px; font-weight: 500; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.history-entry-date { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+
+/* ── MAIN CONTENT ── */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.topbar-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.topbar-sub { font-size: 12px; color: var(--text-3); margin-top: 1px; }
+
+/* ── SCROLLABLE BODY ── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+}
+.content::-webkit-scrollbar { width: 6px; }
+.content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.card-label {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--text-3);
+  margin-bottom: 14px;
+}
+
+
+/* ── Panel tabs ── */
+.panel-tabs {
+  display: flex; gap: 4px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  margin-bottom: 16px;
+}
+.panel-tab {
+  flex: 1; padding: 7px 6px;
+  border-radius: 5px;
+  font-size: 12px; font-weight: 500;
+  color: var(--text-3);
+  border: none; background: none;
+  cursor: pointer; font-family: inherit;
+  transition: all 0.12s;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+.panel-tab svg { width: 11px; height: 11px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+.panel-tab.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.btn-blue { background: var(--blue-bg); color: var(--blue); border-color: #bfdbfe; }
+.btn-blue:hover:not(:disabled) { background: #dbeafe; }
+/* ── Loop panel ── */
+.loop-signin-box {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; padding: 24px 16px; text-align: center;
+}
+.loop-signin-box p { font-size: 13px; color: var(--text-3); max-width: 260px; line-height: 1.6; }
+.loop-device-code-box {
+  display: none; flex-direction: column; gap: 10px;
+  padding: 16px; background: var(--blue-bg);
+  border: 1px solid #bfdbfe; border-radius: var(--radius-sm);
+}
+.loop-device-code-box.visible { display: flex; }
+.loop-device-code { font-size: 22px; font-weight: 700; letter-spacing: 0.1em; color: var(--blue); text-align: center; }
+.loop-device-code-hint { font-size: 12px; color: var(--text-3); text-align: center; line-height: 1.6; }
+.loop-device-url { font-size: 12px; font-weight: 600; color: var(--blue); text-align: center; }
+.loop-signed-in-box { display: none; flex-direction: column; gap: 12px; }
+.loop-signed-in-box.visible { display: flex; }
+.loop-user-pill {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  background: var(--green-bg); border: 1px solid #bbf7d0; border-radius: var(--radius-sm);
+}
+.loop-user-pill span { font-size: 12px; font-weight: 500; color: var(--green); flex: 1; }
+.loop-signout-btn {
+  font-size: 11px; color: var(--text-3); background: none; border: none;
+  cursor: pointer; font-family: inherit; padding: 2px 6px;
+  border-radius: 4px; transition: background 0.1s;
+}
+.loop-signout-btn:hover { background: var(--surface-2); color: var(--text); }
+.loop-files-list { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+.loop-files-list::-webkit-scrollbar { width: 4px; }
+.loop-files-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.loop-file-row {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s;
+}
+.loop-file-row:hover { border-color: var(--text); background: var(--accent-soft); }
+.loop-file-row.selected { border-color: var(--blue); background: var(--blue-bg); }
+.loop-file-icon { width: 28px; height: 28px; background: #e0e7ff; border-radius: 5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.loop-file-icon svg { width: 14px; height: 14px; stroke: var(--blue); stroke-width: 2; fill: none; }
+.loop-file-name { font-size: 12px; font-weight: 500; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loop-file-date { font-size: 11px; color: var(--text-3); flex-shrink: 0; }
+.loop-empty { font-size: 12px; color: var(--text-3); text-align: center; padding: 16px; }
+.loop-refresh-btn {
+  font-size: 12px; color: var(--text-3); background: none;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  cursor: pointer; font-family: inherit; padding: 6px 12px;
+  display: flex; align-items: center; gap: 5px; align-self: flex-end; transition: all 0.12s;
+}
+.loop-refresh-btn:hover { background: var(--surface-2); color: var(--text); }
+.loop-refresh-btn svg { width: 11px; height: 11px; stroke: currentColor; stroke-width: 2; fill: none; }
+/* ── Paste panel ── */
+.paste-textarea {
+  width: 100%; padding: 10px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg);
+  color: var(--text); font-size: 13px; font-family: inherit;
+  resize: vertical; min-height: 110px; line-height: 1.65; transition: border-color 0.12s;
+}
+.paste-textarea:focus { outline: none; border-color: var(--text); }
+.paste-hint { font-size: 11px; color: var(--text-3); text-align: center; }
+
+/* ── RECORD SECTION ── */
+.record-card { display: flex; flex-direction: column; gap: 14px; }
+
+.rec-status {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--red-bg);
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-sm);
+  display: none;
+}
+.rec-status.active { display: flex; }
+.pulse-dot {
+  width: 7px; height: 7px; background: var(--red);
+  border-radius: 50%; flex-shrink: 0;
+  animation: blink 1.1s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
+.rec-status-text { font-size: 12px; font-weight: 500; color: var(--red); flex: 1; }
+.rec-timer { font-size: 12px; font-weight: 600; color: var(--red); font-variant-numeric: tabular-nums; }
+
+.rec-buttons { display: flex; gap: 10px; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 10px 18px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  border: 1px solid transparent;
+  font-family: inherit; line-height: 1; letter-spacing: -0.1px;
+  transition: all 0.12s;
+}
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; stroke-linecap: round; stroke-linejoin: round; }
+
+.btn-dark { background: var(--text); color: #fff; border-color: var(--text); }
+.btn-dark:hover:not(:disabled) { background: #2d2b27; }
+.btn-outline { background: var(--surface); color: var(--text-2); border-color: var(--border-strong); }
+.btn-outline:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+.btn-red { background: var(--red-bg); color: var(--red); border-color: #fecaca; }
+.btn-red:hover:not(:disabled) { background: #fee2e2; }
+
+.rec-hint { font-size: 11px; color: var(--text-3); text-align: center; }
+
+/* ── UPLOAD SECTION ── */
+.drop-zone {
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--bg);
+  transition: all 0.15s;
+}
+.drop-zone:hover, .drop-zone.dragover {
+  border-color: var(--text);
+  background: var(--accent-soft);
+}
+.drop-icon {
+  width: 40px; height: 40px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 12px;
+  transition: all 0.15s;
+}
+.drop-zone:hover .drop-icon, .drop-zone.dragover .drop-icon {
+  background: var(--text); border-color: var(--text);
+}
+.drop-icon svg { width: 18px; height: 18px; stroke: var(--text-3); stroke-width: 1.8; fill: none; transition: stroke 0.15s; }
+.drop-zone:hover .drop-icon svg, .drop-zone.dragover .drop-icon svg { stroke: #fff; }
+.drop-title { font-size: 13px; font-weight: 500; color: var(--text-2); }
+.drop-hint { font-size: 11px; color: var(--text-3); display: block; margin-top: 4px; }
+
+.file-pill {
+  display: none; align-items: center; gap: 8px;
+  padding: 9px 12px;
+  background: var(--green-bg);
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius-sm);
+}
+.file-pill.visible { display: flex; }
+.file-pill-name { font-size: 12px; font-weight: 500; color: var(--green); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-pill-remove {
+  background: none; border: none; cursor: pointer;
+  display: flex; align-items: center; color: var(--text-3);
+  padding: 2px;
+}
+.file-pill-remove svg { width: 12px; height: 12px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+/* ── GENERATE BUTTON ── */
+.btn-generate {
+  width: 100%; padding: 13px;
+  font-size: 13px; font-weight: 600;
+  background: var(--text); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: all 0.12s;
+  letter-spacing: -0.2px;
+}
+.btn-generate:hover:not(:disabled) { background: #2d2b27; }
+.btn-generate:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-generate svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+/* ── PROMPTS ── */
+.prompt-select-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.prompt-select {
+  flex: 1; padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text); font-size: 13px; font-family: inherit;
+  cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8784' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+  transition: border-color 0.12s;
+}
+.prompt-select:focus { outline: none; border-color: var(--text); }
+
+.prompt-edit-banner {
+  display: none; align-items: center; gap: 8px;
+  padding: 8px 12px; margin-bottom: 10px;
+  background: var(--gold-bg); border: 1px solid #fde68a;
+  border-radius: var(--radius-sm);
+  font-size: 12px; color: var(--gold);
+}
+.prompt-edit-banner.visible { display: flex; }
+.prompt-edit-banner svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2; fill: none; flex-shrink: 0; }
+
+.chip-del {
+  width: 12px; height: 12px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0.5; flex-shrink: 0;
+}
+.chip-del svg { width: 9px; height: 9px; stroke: currentColor; stroke-width: 2.5; fill: none; }
+.chip-del:hover { opacity: 1; }
+
+.prompt-textarea {
+  width: 100%; padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text); font-size: 13px; font-family: inherit;
+  resize: vertical; min-height: 72px; line-height: 1.65;
+  transition: border-color 0.12s;
+}
+.prompt-textarea:focus { outline: none; border-color: var(--text); }
+
+.prompt-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.prompt-name-input {
+  flex: 1; padding: 8px 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text); font-size: 12px; font-family: inherit;
+  transition: border-color 0.12s;
+}
+.prompt-name-input:focus { outline: none; border-color: var(--text); }
+.btn-sm {
+  padding: 7px 12px; font-size: 12px; font-weight: 500;
+  border-radius: var(--radius-sm);
+  font-family: inherit; cursor: pointer;
+  display: flex; align-items: center; gap: 5px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--text-2);
+  transition: all 0.12s; white-space: nowrap;
+}
+.btn-sm:hover { background: var(--surface-2); color: var(--text); }
+.btn-sm.save { background: var(--text); color: #fff; border-color: var(--text); }
+.btn-sm.save:hover { background: #2d2b27; }
+.btn-sm svg { width: 11px; height: 11px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+/* ── PROGRESS ── */
+.progress-card { display: none; }
+.progress-card.active { display: block; }
+.progress-track { background: var(--border); border-radius: 999px; height: 3px; overflow: hidden; margin-bottom: 10px; }
+.progress-fill { height: 100%; background: var(--text); border-radius: 999px; transition: width 0.35s ease; width: 0%; }
+.progress-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-3); }
+.progress-elapsed { font-size: 11px; color: var(--text-3); text-align: center; margin-top: 6px; }
+
+/* ── STATUS ── */
+.status-msg { font-size: 13px; color: var(--text-3); text-align: center; min-height: 18px; }
+.status-msg.error { color: var(--red); }
+.status-msg.success { color: var(--green); }
+
+/* ── NOTES WORKSPACE ── */
+.workspace { display: none; }
+.workspace.visible { display: block; }
+
+.workspace-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
+}
+.workspace-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.workspace-actions { display: flex; gap: 8px; align-items: center; }
+
+.notes-body {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  font-size: 14px; color: var(--text-2); line-height: 1.85;
+}
+.notes-body h3 {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--text-3); margin-bottom: 8px; margin-top: 18px;
+}
+.notes-body h3:first-child { margin-top: 0; }
+.notes-body ul { padding-left: 16px; margin-bottom: 4px; }
+.notes-body li { line-height: 1.9; }
+.notes-body p { margin-bottom: 4px; }
+
+/* ── TRANSCRIPT TOGGLE ── */
+.transcript-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 500; color: var(--text-3);
+  background: none; border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer; padding: 6px 10px; margin-top: 12px;
+  font-family: inherit; transition: all 0.12s;
+}
+.transcript-toggle svg { width: 11px; height: 11px; stroke: currentColor; stroke-width: 2.5; fill: none; transition: transform 0.2s ease; flex-shrink: 0; }
+.transcript-toggle.open svg { transform: rotate(90deg); }
+.transcript-toggle:hover { color: var(--text); background: var(--surface-2); border-color: var(--border-strong); }
+
+.transcript-area { display: none; margin-top: 14px; }
+.transcript-area.open { display: block; }
+.speaker-block {
+  margin-bottom: 12px; padding: 12px 14px;
+  border-radius: var(--radius-sm); border-left: 2px solid;
+}
+.sp-1 { background: #f0fdf4; border-color: #22c55e; }
+.sp-2 { background: #eff6ff; border-color: #3b82f6; }
+.sp-3 { background: var(--gold-bg); border-color: #d97706; }
+.sp-default { background: var(--surface-2); border-color: var(--border-strong); }
+.speaker-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
+.speaker-name { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; }
+.sp-1 .speaker-name { color: #16a34a; }
+.sp-2 .speaker-name { color: #2563eb; }
+.sp-3 .speaker-name { color: #b45309; }
+.sp-default .speaker-name { color: var(--text-3); }
+.speaker-time { font-size: 10.5px; color: var(--text-3); }
+.speaker-text { font-size: 13px; color: var(--text-2); line-height: 1.75; }
+
+/* ── COPY BUTTON ── */
+.copy-btn {
+  font-size: 12px; font-weight: 500; padding: 6px 12px;
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-2); cursor: pointer;
+  font-family: inherit; display: flex; align-items: center; gap: 5px;
+  transition: all 0.12s;
+}
+.copy-btn:hover { background: var(--surface-2); color: var(--text); }
+.copy-btn.copied { background: var(--green-bg); color: var(--green); border-color: #bbf7d0; }
+.copy-btn svg { width: 11px; height: 11px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: var(--text-3); text-align: center;
+  padding: 40px;
+  gap: 10px;
+}
+.empty-icon { width: 40px; height: 40px; opacity: 0.3; }
+.empty-icon svg { width: 40px; height: 40px; stroke: var(--text); stroke-width: 1.4; fill: none; }
+.empty-state p { font-size: 13px; max-width: 220px; line-height: 1.6; }
+
+/* ── HISTORY VIEW ── */
+.history-full { display: flex; flex-direction: column; gap: 10px; }
+.history-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; transition: border-color 0.12s;
+  cursor: pointer;
+}
+.history-card:hover { border-color: var(--border-strong); }
+.history-card-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.history-card-date { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.history-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.hbtn {
+  font-size: 11.5px; font-weight: 500; padding: 5px 11px;
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-2);
+  cursor: pointer; font-family: inherit; transition: all 0.12s;
+}
+.hbtn:hover { background: var(--text); color: #fff; border-color: var(--text); }
+.hbtn.delete { color: var(--red); border-color: #fecaca; }
+.hbtn.delete:hover { background: var(--red); color: #fff; border-color: var(--red); }
+
+.history-entry-del {
+  flex-shrink: 0; width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px; background: none; border: none; cursor: pointer;
+  color: var(--text-3); opacity: 0; transition: all 0.12s;
+}
+.history-entry:hover .history-entry-del { opacity: 1; }
+.history-entry-del:hover { background: var(--red-bg); color: var(--red); }
+.history-entry-del svg { width: 11px; height: 11px; stroke: currentColor; stroke-width: 2; fill: none; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+      </div>
+      <span class="logo-text">Notetaker</span>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" id="navNew" onclick="startNewNote()">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New note
+      </button>
+      <button class="nav-item" id="navHistory" onclick="showView('history')">
+        <svg viewBox="0 0 24 24"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-3"/><polyline points="3 4 3 11 10 11"/></svg>
+        History
+      </button>
+    </nav>
+
+    <div class="history-label-row">
+      <div class="history-label">Recent</div>
+      <button class="history-viewall" onclick="showView('history')">View all</button>
+    </div>
+    <div class="history-list-sidebar" id="sidebarHistory"></div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <div class="main">
+
+    <!-- NEW NOTE VIEW -->
+    <div id="viewNew" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
+      <div class="topbar">
+        <div>
+          <div class="topbar-title">New note</div>
+          <div class="topbar-sub">Record, upload, connect Loop, or paste text</div>
+        </div>
+      </div>
+
+      <div class="content">
+
+        <!-- Unified input card with tabs -->
+        <div class="card">
+          <div class="panel-tabs">
+            <button class="panel-tab active" id="tabRecord" onclick="switchTab('record')">
+              <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+              Record
+            </button>
+            <button class="panel-tab" id="tabUpload" onclick="switchTab('upload')">
+              <svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+              Upload
+            </button>
+            <button class="panel-tab" id="tabLoop" onclick="switchTab('loop')">
+              <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              Loop
+            </button>
+            <button class="panel-tab" id="tabPaste" onclick="switchTab('paste')">
+              <svg viewBox="0 0 24 24"><path d="M9 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="13 2 13 8 19 8"/></svg>
+              Paste
+            </button>
+          </div>
+
+          <!-- Record panel -->
+          <div id="panelRecord" class="record-card">
+            <div class="rec-status" id="recStatus">
+              <div class="pulse-dot"></div>
+              <span class="rec-status-text">Recording in progress</span>
+              <span class="rec-timer" id="recTimer">0:00</span>
+            </div>
+            <div class="rec-buttons">
+              <button class="btn btn-dark" id="btnStart" onclick="startRecording()" style="flex:1">
+                <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+                Start recording
+              </button>
+              <button class="btn btn-red" id="btnStop" onclick="stopRecording()" disabled>
+                <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+                Stop
+              </button>
+            </div>
+            <div class="rec-hint">Notes generate automatically when you stop</div>
+          </div>
+
+          <!-- Upload panel -->
+          <div id="panelUpload" style="display:none;flex-direction:column;gap:12px;">
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+              <div class="drop-icon">
+                <svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+              </div>
+              <p class="drop-title">Drop file or click to browse</p>
+              <small class="drop-hint">.mp3 · .m4a · .wav · .mp4 · .mov · .avi · .mkv · .webm · .txt · .pdf · .docx · .pptx · .xlsx</small>
+            </div>
+            <div class="file-pill" id="filePill">
+              <span class="file-pill-name" id="filePillName"></span>
+              <button class="file-pill-remove" onclick="removeFile(event)">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <input type="file" id="fileInput" accept=".mp3,.m4a,.wav,.mp4,.mov,.avi,.mkv,.webm,.txt,.pdf,.docx,.pptx,.xlsx" style="display:none">
+            <button class="btn-generate" id="btnGenerate" onclick="generateNotes()" disabled>
+              <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Generate notes
+            </button>
+          </div>
+
+          <!-- Loop panel -->
+          <div id="panelLoop" style="display:none;flex-direction:column;gap:12px;">
+            <div id="loopSignedOut" class="loop-signin-box">
+              <svg viewBox="0 0 24 24" style="width:36px;height:36px;stroke:#2563eb;stroke-width:1.5;fill:none;opacity:0.7"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              <p>Connect your Microsoft account to read Loop files directly from OneDrive</p>
+              <button class="btn btn-blue" onclick="loopSignIn()">
+                <svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                Sign in with Microsoft
+              </button>
+            </div>
+            <div id="loopDeviceCode" class="loop-device-code-box">
+              <div class="loop-device-url">Go to: <strong id="loopVerifyUrl">microsoft.com/devicelogin</strong></div>
+              <div class="loop-device-code" id="loopUserCode">———</div>
+              <div class="loop-device-code-hint">Enter this code at the link above, then sign in with your Microsoft account.</div>
+            </div>
+            <div id="loopSignedIn" class="loop-signed-in-box">
+              <div class="loop-user-pill">
+                <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:#16a34a;stroke-width:2;fill:none;flex-shrink:0"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span id="loopUsername">Signed in</span>
+                <button class="loop-signout-btn" onclick="loopSignOut()">Sign out</button>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div class="card-label" style="margin:0">Your Loop files</div>
+                <button class="loop-refresh-btn" onclick="loadLoopFiles()">
+                  <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                  Refresh
+                </button>
+              </div>
+              <div class="loop-files-list" id="loopFilesList"><div class="loop-empty">Loading files…</div></div>
+              <button class="btn-generate" id="btnGenerateLoop" onclick="generateNotesFromLoop()" disabled>
+                <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                Generate notes from selected file
+              </button>
+            </div>
+          </div>
+
+          <!-- Paste panel -->
+          <div id="panelPaste" style="display:none;flex-direction:column;gap:12px;">
+            <textarea class="paste-textarea" id="pasteText" placeholder="Paste your text here — from Microsoft Loop, Notion, Word, meeting notes, emails, anything…"></textarea>
+            <p class="paste-hint">Works with any text — Loop pages, Notion docs, emails, chat logs</p>
+            <button class="btn-generate" id="btnGeneratePaste" onclick="generateNotesPaste()" disabled>
+              <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Generate notes
+            </button>
+          </div>
+        </div>
+
+        <!-- Prompt -->
+        <div class="card">
+          <div class="card-label">Prompt</div>
+          <div class="prompt-select-row">
+            <select class="prompt-select" id="promptSelect" onchange="onPromptSelectChange()">
+              <option value="__default__">Default</option>
+            </select>
+            <button class="btn-sm" id="promptDeleteBtn" onclick="deleteSelectedPrompt()" style="display:none" title="Delete this prompt">
+              <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+            </button>
+          </div>
+          <textarea class="prompt-textarea" id="promptText" rows="3">Generate meeting notes with key points, decisions made, and action items with owners.</textarea>
+          <div class="prompt-actions">
+            <input type="text" class="prompt-name-input" id="promptNameInput" placeholder="Name this prompt…">
+            <button class="btn-sm save" id="savePromptBtn" onclick="savePrompt()">
+              <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              <span id="savePromptLabel">Save prompt</span>
+            </button>
+            <button class="btn-sm" onclick="resetPrompt()">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="card progress-card" id="progressCard">
+          <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="progress-row">
+            <span id="progressMsg">Processing…</span>
+            <span id="progressPct">0%</span>
+          </div>
+          <div class="progress-elapsed" id="progressElapsed"></div>
+        </div>
+
+        <div class="status-msg" id="statusMsg"></div>
+
+        <!-- Notes workspace -->
+        <div class="workspace" id="workspace">
+          <div class="workspace-topbar">
+            <div class="workspace-title" id="workspaceTitle">Smart notes</div>
+            <div class="workspace-actions">
+              <button class="copy-btn" id="copyBtn" onclick="copyNotes()">
+                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy
+              </button>
+            </div>
+          </div>
+          <div class="notes-body" id="notesBody"></div>
+          <button class="transcript-toggle" id="transcriptToggle" onclick="toggleTranscript()"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg><span id="transcriptLabel">Show transcript</span></button>
+          <div class="transcript-area" id="transcriptArea">
+            <div id="transcriptBlocks"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- HISTORY VIEW -->
+    <div id="viewHistory" style="display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
+      <div class="topbar">
+        <div>
+          <div class="topbar-title">History</div>
+          <div class="topbar-sub">All previous transcriptions</div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="history-full" id="historyFull">
+          <div class="empty-state">
+            <div class="empty-icon"><svg viewBox="0 0 24 24"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-3"/></svg></div>
+            <p>No recordings yet. Start a new note to see it here.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  State
+// ─────────────────────────────────────────────
+let mediaRecorder = null, audioChunks = [], audioBlob = null;
+let uploadedFile = null;
+let recInterval = null, recSecs = 0;
+let elapsedInterval = null, elapsedSecs = 0;
+let eventSource = null;
+let lastNotes = null, lastWords = [];
+let savedPrompts = JSON.parse(localStorage.getItem('np_prompts') || '[]');
+window.currentId = null;
+
+const DEFAULT_PROMPT = 'Generate meeting notes with key points, decisions made, and action items with owners.';
+
+// ─────────────────────────────────────────────
+//  Boot
+// ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  renderPromptChips();
+  loadSidebarHistory();
+
+  document.getElementById('fileInput').addEventListener('change', e => {
+    if (e.target.files[0]) setFile(e.target.files[0]);
+  });
+
+  const dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('dragover');
+    const f = e.dataTransfer.files[0];
+    if (!f) return;
+    if (/\.loop$/i.test(f.name)) { setStatus('Use the Loop tab for .loop files.', 'error'); switchTab('loop'); }
+    else if (/\.(mp3|m4a|wav|mp4|mov|avi|mkv|webm|txt|pdf|docx|pptx|xlsx)$/i.test(f.name)) setFile(f);
+    else setStatus('Unsupported file type.', 'error');
+  });
+
+  checkLoopStatus();
+
+  document.getElementById('pasteText')?.addEventListener('input', () => {
+    document.getElementById('btnGeneratePaste').disabled =
+      document.getElementById('pasteText').value.trim().length < 10;
+  });
+});
+
+// ─────────────────────────────────────────────
+//  Navigation
+// ─────────────────────────────────────────────
+function showView(view) {
+  const vNew = document.getElementById('viewNew');
+  const vHist = document.getElementById('viewHistory');
+  vNew.style.display = view === 'new' ? 'flex' : 'none';
+  vHist.style.display = view === 'history' ? 'flex' : 'none';
+  document.getElementById('navNew').classList.toggle('active', view === 'new');
+  document.getElementById('navHistory').classList.toggle('active', view === 'history');
+  if (view === 'history') loadHistoryFull();
+}
+
+/**
+ * Called only when the user explicitly clicks the "New note" nav button.
+ * Fully resets the New Note view back to a blank slate — clears any
+ * loaded notes/transcript from a previously viewed history item, resets
+ * the active file/recording state, and clears status/progress UI.
+ * (loadSummaryInline / loadTranscriptInline call showView('new') directly
+ * and intentionally do NOT go through this reset.)
+ */
+function startNewNote() {
+  // Clear workspace (notes + transcript)
+  document.getElementById('workspace').classList.remove('visible');
+  document.getElementById('notesBody').innerHTML = '';
+  document.getElementById('transcriptBlocks').innerHTML = '';
+  document.getElementById('transcriptArea').classList.remove('open');
+  document.getElementById('transcriptToggle').classList.remove('open');
+  document.getElementById('transcriptLabel').textContent = 'Show transcript';
+  document.getElementById('workspaceTitle').textContent = 'Smart notes';
+
+  // Clear current record id + in-memory data
+  window.currentId = null;
+  lastNotes = null;
+  lastWords = [];
+
+  // Clear any in-flight upload/recording state
+  uploadedFile = null;
+  audioBlob = null;
+  audioChunks = [];
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+    mediaRecorder.stream.getTracks().forEach(t => t.stop());
+  }
+  clearInterval(recInterval);
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnStop').disabled = true;
+  document.getElementById('recStatus').classList.remove('active');
+
+  // Clear file picker UI
+  document.getElementById('fileInput').value = '';
+  document.getElementById('filePill').classList.remove('visible');
+  document.getElementById('btnGenerate').disabled = true;
+
+  // Clear paste tab
+  const pasteEl = document.getElementById('pasteText');
+  if (pasteEl) pasteEl.value = '';
+  document.getElementById('btnGeneratePaste').disabled = true;
+
+  // Clear progress + status
+  document.getElementById('progressCard').classList.remove('active');
+  stopElapsed();
+  setStatus('', '');
+
+  // Reset to the Record tab
+  switchTab('record');
+
+  // Clear active highlight in sidebar history
+  document.querySelectorAll('.history-entry').forEach(el => el.classList.remove('active'));
+
+  showView('new');
+}
+
+// ─────────────────────────────────────────────
+//  File handling
+// ─────────────────────────────────────────────
+function setFile(f) {
+  uploadedFile = f; audioBlob = null;
+  document.getElementById('filePillName').textContent = f.name;
+  document.getElementById('filePill').classList.add('visible');
+  document.getElementById('btnGenerate').disabled = false;
+  setStatus('File ready — click Generate notes.', 'success');
+}
+
+function removeFile(e) {
+  e.stopPropagation();
+  uploadedFile = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('filePill').classList.remove('visible');
+  document.getElementById('btnGenerate').disabled = true;
+  setStatus('', '');
+}
+
+// ─────────────────────────────────────────────
+//  Recording
+// ─────────────────────────────────────────────
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+    mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
+    audioChunks = [];
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      audioBlob = new Blob(audioChunks, { type: mime });
+      generateNotes();
+    };
+    mediaRecorder.start();
+    document.getElementById('btnStart').disabled = true;
+    document.getElementById('btnStop').disabled = false;
+    document.getElementById('recStatus').classList.add('active');
+    recSecs = 0;
+    recInterval = setInterval(() => {
+      recSecs++;
+      const m = Math.floor(recSecs / 60), s = recSecs % 60;
+      document.getElementById('recTimer').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+    }, 1000);
+    setStatus('Recording…', '');
+  } catch {
+    setStatus('Microphone access denied. Check System Preferences.', 'error');
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+    mediaRecorder.stream.getTracks().forEach(t => t.stop());
+  }
+  clearInterval(recInterval);
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnStop').disabled = true;
+  document.getElementById('recStatus').classList.remove('active');
+  setStatus('Processing recording…', '');
+}
+
+// ─────────────────────────────────────────────
+//  Generate
+// ─────────────────────────────────────────────
+async function generateNotes() {
+  const ext = audioBlob ? (audioBlob.type.includes('webm') ? 'webm' : 'ogg') : null;
+  const file = audioBlob
+    ? new File([audioBlob], `recording.${ext}`, { type: audioBlob.type })
+    : uploadedFile;
+  if (!file) { setStatus('Record audio or upload a file first.', 'error'); return; }
+
+  const prompt = document.getElementById('promptText').value.trim();
+  if (!prompt) { setStatus('Enter a prompt first.', 'error'); return; }
+
+  // Reset UI
+  document.getElementById('btnGenerate').disabled = true;
+  document.getElementById('workspace').classList.remove('visible');
+  document.getElementById('progressCard').classList.add('active');
+  setProgress(0, 'Starting…');
+  setStatus('', '');
+  startElapsed();
+  window.currentId = null;
+
+  const jobId = Date.now().toString();
+  if (eventSource) eventSource.close();
+  eventSource = new EventSource(`http://localhost:5001/progress/${jobId}`);
+  eventSource.onmessage = e => {
+    const d = JSON.parse(e.data);
+    if (d.done) { eventSource.close(); return; }
+    setProgress(d.percent, d.message);
+  };
+  eventSource.onerror = () => eventSource.close();
+
+  const form = new FormData();
+  form.append('audio', file);
+  form.append('promptInstruction', prompt);
+  form.append('jobId', jobId);
+  form.append('outputLanguage', 'auto');
+
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 60 * 60 * 1000);
+    const res = await fetch('http://localhost:5001/upload', { method: 'POST', body: form, signal: ctrl.signal });
+    clearTimeout(tid);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      throw new Error(err.error || `Server error ${res.status}`);
+    }
+    const data = await res.json();
+    document.getElementById('progressCard').classList.remove('active');
+    stopElapsed();
+    if (data.status === 'Success') {
+      setProgress(100, 'Done!');
+      setStatus(`Done in ${data.processingTime}s`, 'success');
+      window.currentId = data.id;
+      lastWords = data.transcription.wordTimestamps;
+      renderTranscript(lastWords);
+      if (data.notes) {
+        renderNotes(data.notes);
+        setTimeout(() => {
+          const content = document.querySelector('.content');
+          if (content) content.scrollTop = content.scrollHeight;
+        }, 100);
+      }
+      loadSidebarHistory();
+    } else {
+      setStatus('Error: ' + data.error, 'error');
+    }
+  } catch (err) {
+    document.getElementById('progressCard').classList.remove('active');
+    stopElapsed();
+    setStatus(err.name === 'AbortError' ? 'Request timed out.' : 'Error: ' + err.message, 'error');
+  }
+  if (eventSource) { eventSource.close(); eventSource = null; }
+  document.getElementById('btnGenerate').disabled = false;
+}
+
+// ─────────────────────────────────────────────
+//  Progress + status helpers
+// ─────────────────────────────────────────────
+function setProgress(pct, msg) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('progressMsg').textContent = msg;
+}
+function startElapsed() {
+  elapsedSecs = 0;
+  document.getElementById('progressElapsed').textContent = '';
+  elapsedInterval = setInterval(() => {
+    elapsedSecs++;
+    const m = Math.floor(elapsedSecs / 60), s = elapsedSecs % 60;
+    document.getElementById('progressElapsed').textContent =
+      `⏱ ${m > 0 ? m + 'm ' : ''}${s}s`;
+  }, 1000);
+}
+function stopElapsed() { clearInterval(elapsedInterval); elapsedInterval = null; }
+function setStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = 'status-msg' + (type ? ` ${type}` : '');
+}
+
+// ─────────────────────────────────────────────
+//  Render notes
+// ─────────────────────────────────────────────
+function mdBold(str) {
+  return esc(str).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
+function renderNotes(n) {
+  lastNotes = n;
+  const ws = document.getElementById('workspace');
+  ws.classList.add('visible');
+  let html = '';
+  if (n.summary)           html += `<h3>Summary</h3><p>${mdBold(n.summary)}</p>`;
+  if (n.keyPoints?.length) html += `<h3>Key Points</h3><ul>${n.keyPoints.map(i=>`<li>${mdBold(i)}</li>`).join('')}</ul>`;
+  if (n.decisions?.length) html += `<h3>Decisions</h3><ul>${n.decisions.map(i=>`<li>${mdBold(i)}</li>`).join('')}</ul>`;
+  if (n.actionItems?.length) html += `<h3>Action Items</h3><ul>${n.actionItems.map(i=>`<li>${mdBold(i)}</li>`).join('')}</ul>`;
+  if (n.topics?.length)    html += `<h3>Topics</h3><ul>${n.topics.map(i=>`<li>${mdBold(i)}</li>`).join('')}</ul>`;
+  if (n.speakerInsights?.length) html += `<h3>Speaker Insights</h3><ul>${n.speakerInsights.map(i=>`<li>${mdBold(i)}</li>`).join('')}</ul>`;
+  document.getElementById('notesBody').innerHTML = html;
+}
+
+function renderTranscript(words) {
+  const container = document.getElementById('transcriptBlocks');
+  container.innerHTML = '';
+  let curSpeaker = null, textEl = null;
+  words.forEach(w => {
+    const id = w.speaker || '1';
+    if (id !== curSpeaker) {
+      curSpeaker = id;
+      const block = document.createElement('div');
+      const cls = id === '1' ? 'sp-1' : id === '2' ? 'sp-2' : id === '3' ? 'sp-3' : 'sp-default';
+      block.className = `speaker-block ${cls}`;
+      block.innerHTML = `<div class="speaker-header"><span class="speaker-name">Speaker ${esc(id)}</span><span class="speaker-time">${esc(w.startTime)}</span></div>`;
+      textEl = document.createElement('p'); textEl.className = 'speaker-text';
+      block.appendChild(textEl); container.appendChild(block);
+    }
+    textEl.textContent += (textEl.textContent ? ' ' : '') + w.word;
+  });
+}
+
+function toggleTranscript() {
+  const btn = document.getElementById('transcriptToggle');
+  const area = document.getElementById('transcriptArea');
+  const isOpen = btn.classList.toggle('open');
+  area.classList.toggle('open', isOpen);
+  document.getElementById('transcriptLabel').textContent = isOpen ? 'Hide transcript' : 'Show transcript';
+}
+
+function copyNotes() {
+  navigator.clipboard.writeText(document.getElementById('notesBody').innerText).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.innerHTML = `<svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:currentColor;stroke-width:2;fill:none"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.innerHTML = `<svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:currentColor;stroke-width:2;fill:none"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy`;
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+// ─────────────────────────────────────────────
+//  Prompts
+// ─────────────────────────────────────────────
+let editingPromptIndex = -1; // -1 = none selected / default
+
+function renderPromptSelect() {
+  const sel = document.getElementById('promptSelect');
+  const current = sel.value; // preserve selection if possible
+  sel.innerHTML = '<option value="__default__">Default</option>';
+  savedPrompts.forEach((p, i) => {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+  // Restore selection
+  if (current !== '__default__' && savedPrompts[parseInt(current)]) {
+    sel.value = current;
+  } else {
+    sel.value = '__default__';
+  }
+  syncDeleteBtn();
+}
+
+// Keep old name so DOMContentLoaded call still works
+function renderPromptChips() { renderPromptSelect(); }
+
+function syncDeleteBtn() {
+  const sel = document.getElementById('promptSelect');
+  const deleteBtn = document.getElementById('promptDeleteBtn');
+  const isCustom = sel.value !== '__default__';
+  deleteBtn.style.display = isCustom ? '' : 'none';
+}
+
+function onPromptSelectChange() {
+  const sel = document.getElementById('promptSelect');
+  const val = sel.value;
+  syncDeleteBtn();
+  if (val === '__default__') {
+    document.getElementById('promptText').value = DEFAULT_PROMPT;
+    document.getElementById('promptNameInput').value = '';
+    document.getElementById('savePromptLabel').textContent = 'Save prompt';
+    editingPromptIndex = -1;
+  } else {
+    const i = parseInt(val);
+    editingPromptIndex = i;
+    document.getElementById('promptText').value = savedPrompts[i].text;
+    document.getElementById('promptNameInput').value = savedPrompts[i].name;
+    document.getElementById('savePromptLabel').textContent = 'Update prompt';
+  }
+}
+
+function setEditMode(index) {
+  editingPromptIndex = index;
+  const sel = document.getElementById('promptSelect');
+  if (index >= 0) {
+    sel.value = String(index);
+    document.getElementById('savePromptLabel').textContent = 'Update prompt';
+  } else {
+    sel.value = '__default__';
+    document.getElementById('savePromptLabel').textContent = 'Save prompt';
+  }
+  syncDeleteBtn();
+}
+
+function savePrompt() {
+  const name = document.getElementById('promptNameInput').value.trim();
+  const text = document.getElementById('promptText').value.trim();
+  if (!name) { setStatus('Enter a name for the prompt.', 'error'); return; }
+  if (!text) { setStatus('Enter a prompt to save.', 'error'); return; }
+
+  if (editingPromptIndex >= 0) {
+    // Update existing — allow rename too
+    const conflict = savedPrompts.findIndex((p, i) => p.name === name && i !== editingPromptIndex);
+    if (conflict >= 0) { setStatus(`A prompt named "${name}" already exists.`, 'error'); return; }
+    savedPrompts[editingPromptIndex] = { name, text };
+    localStorage.setItem('np_prompts', JSON.stringify(savedPrompts));
+    renderPromptSelect();
+    setEditMode(editingPromptIndex);
+    setStatus(`Prompt "${name}" updated.`, 'success');
+  } else {
+    // New prompt
+    const existing = savedPrompts.findIndex(p => p.name === name);
+    if (existing >= 0) { setStatus(`"${name}" already exists. Select it from the dropdown to edit.`, 'error'); return; }
+    savedPrompts.push({ name, text });
+    localStorage.setItem('np_prompts', JSON.stringify(savedPrompts));
+    const newIndex = savedPrompts.length - 1;
+    renderPromptSelect();
+    setEditMode(newIndex);
+    setStatus(`Prompt "${name}" saved.`, 'success');
+  }
+}
+
+function deleteSelectedPrompt() {
+  const sel = document.getElementById('promptSelect');
+  const i = parseInt(sel.value);
+  if (isNaN(i) || !savedPrompts[i]) return;
+  const name = savedPrompts[i].name;
+  savedPrompts.splice(i, 1);
+  localStorage.setItem('np_prompts', JSON.stringify(savedPrompts));
+  resetPrompt();
+  setStatus(`Prompt "${name}" deleted.`, '');
+}
+
+// Keep for any inline delete calls (not used in new UI but safe to keep)
+function deletePrompt(e, i) {
+  e.stopPropagation();
+  const name = savedPrompts[i].name;
+  savedPrompts.splice(i, 1);
+  localStorage.setItem('np_prompts', JSON.stringify(savedPrompts));
+  if (editingPromptIndex === i) {
+    resetPrompt();
+  } else {
+    if (editingPromptIndex > i) editingPromptIndex--;
+    renderPromptSelect();
+  }
+  setStatus(`Prompt "${name}" deleted.`, '');
+}
+
+function resetPrompt() {
+  document.getElementById('promptText').value = DEFAULT_PROMPT;
+  document.getElementById('promptNameInput').value = '';
+  editingPromptIndex = -1;
+  renderPromptSelect();
+  document.getElementById('savePromptLabel').textContent = 'Save prompt';
+}
+
+// ─────────────────────────────────────────────
+//  History
+// ─────────────────────────────────────────────
+async function loadSidebarHistory() {
+  try {
+    const res = await fetch('http://localhost:5001/history');
+    const data = await res.json();
+    const container = document.getElementById('sidebarHistory');
+    if (!data.history.length) { container.innerHTML = ''; return; }
+    container.innerHTML = data.history.slice(0, 5).map(item => `
+      <div class="history-entry" id="sidebar-${item.id}">
+        <div class="history-entry-main" onclick="loadSummaryInline('${item.id}')">
+          <div class="history-entry-name">${esc(item.fileName)}</div>
+          <div class="history-entry-date">${item.createdAt ? fmtDate(item.createdAt) : ''}</div>
+        </div>
+        <button class="history-entry-del" title="Delete" onclick="deleteHistoryItem(event, '${item.id}')">
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        </button>
+      </div>
+    `).join('');
+  } catch {}
+}
+
+async function loadHistoryFull() {
+  const container = document.getElementById('historyFull');
+  container.innerHTML = '<p style="color:var(--text-3);font-size:13px">Loading…</p>';
+  try {
+    const res = await fetch('http://localhost:5001/history');
+    const data = await res.json();
+    if (!data.history.length) {
+      container.innerHTML = `<div class="empty-state">
+        <div class="empty-icon"><svg viewBox="0 0 24 24"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-3"/></svg></div>
+        <p>No recordings yet.</p></div>`;
+      return;
+    }
+    container.innerHTML = data.history.map(item => `
+      <div class="history-card" id="historycard-${item.id}">
+        <div>
+          <div class="history-card-name">${esc(item.fileName)}</div>
+          <div class="history-card-date">${item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}</div>
+        </div>
+        <div class="history-card-actions">
+          <button class="hbtn" onclick="event.stopPropagation(); loadTranscriptInline('${item.id}')">Transcript</button>
+          <button class="hbtn" onclick="event.stopPropagation(); loadSummaryInline('${item.id}')">Notes</button>
+          <button class="hbtn delete" onclick="deleteHistoryItem(event, '${item.id}')">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  } catch {
+    container.innerHTML = '<p style="color:var(--red);font-size:13px">Failed to load history.</p>';
+  }
+}
+
+/**
+ * Delete a transcript/summary record. Used by both the sidebar Recent
+ * list and the full History page. Confirms first, then calls the
+ * backend DELETE route and removes the item from whichever view(s) it
+ * appears in without a full reload.
+ */
+async function deleteHistoryItem(e, id) {
+  if (e) e.stopPropagation();
+  const ok = window.confirm('Delete this recording and its notes? This cannot be undone.');
+  if (!ok) return;
+
+  try {
+    const res = await fetch(`http://localhost:5001/history/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.status !== 'Success') throw new Error(data.error || 'Delete failed.');
+
+    // Remove from sidebar if present
+    const sidebarEl = document.getElementById(`sidebar-${id}`);
+    if (sidebarEl) sidebarEl.remove();
+
+    // Remove from full history view if present
+    const cardEl = document.getElementById(`historycard-${id}`);
+    if (cardEl) cardEl.remove();
+
+    // If the deleted note is currently open in the workspace, clear it
+    if (window.currentId === id) {
+      startNewNote();
+    }
+
+    setStatus('Recording deleted.', '');
+
+    // Refresh sidebar to backfill the 5-item list and refresh full
+    // history's empty state if that was the last item.
+    loadSidebarHistory();
+    const historyView = document.getElementById('viewHistory');
+    if (historyView.style.display !== 'none') loadHistoryFull();
+  } catch (err) {
+    setStatus('Failed to delete: ' + err.message, 'error');
+  }
+}
+
+async function loadSummaryInline(id) {
+  showView('new');
+  setStatus('Loading notes…', '');
+  try {
+    const res = await fetch(`http://localhost:5001/summary/${id}`);
+    const data = await res.json();
+    if (data.status === 'Success') {
+      window.currentId = id;
+      renderNotes(data.summary);
+      document.getElementById('workspaceTitle').textContent = data.summary.fileName || 'Smart notes';
+      setStatus('', '');
+    }
+  } catch { setStatus('Failed to load notes.', 'error'); }
+}
+
+async function loadTranscriptInline(id) {
+  showView('new');
+  setStatus('Loading transcript…', '');
+  try {
+    const res = await fetch(`http://localhost:5001/transcript/${id}`);
+    const data = await res.json();
+    if (data.status === 'Success') {
+      window.currentId = id;
+      lastWords = data.transcript.wordTimestamps;
+      renderTranscript(lastWords);
+      document.getElementById('workspace').classList.add('visible');
+      document.getElementById('workspaceTitle').textContent = data.transcript.fileName || 'Transcript';
+      setStatus('', '');
+    }
+  } catch { setStatus('Failed to load transcript.', 'error'); }
+}
+
+// ─────────────────────────────────────────────
+//  Utils
+// ─────────────────────────────────────────────
+function esc(str) {
+  const d = document.createElement('div'); d.textContent = String(str); return d.innerHTML;
+}
+function fmtDate(iso) {
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 86400000 && d.getDate() === now.getDate()) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+// ── Tab switching ──
+function switchTab(tab) {
+  ['record','upload','loop','paste'].forEach(t => {
+    const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+    const panel = document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (btn) btn.classList.toggle('active', t === tab);
+    if (panel) {
+      panel.style.display = t === tab ? 'flex' : 'none';
+      if (t === tab) panel.style.flexDirection = 'column';
+    }
+  });
+}
+
+// ── Paste ──
+async function generateNotesPaste() {
+  const text = document.getElementById('pasteText').value.trim();
+  if (!text || text.length < 10) { setStatus('Paste some text first.', 'error'); return; }
+  const prompt = document.getElementById('promptText').value.trim();
+  if (!prompt) { setStatus('Enter a prompt first.', 'error'); return; }
+  const blob = new Blob([text], { type: 'text/plain' });
+  uploadedFile = new File([blob], 'pasted-text.txt', { type: 'text/plain' });
+  audioBlob = null;
+  await generateNotes();
+  uploadedFile = null;
+}
+
+// ── Loop ──
+let selectedLoopFile = null;
+let loopPollInterval = null;
+
+async function checkLoopStatus() {
+  try {
+    const res = await fetch('http://localhost:5001/loop/status');
+    const data = await res.json();
+    if (data.status === 'signed_in') { showLoopSignedIn(data.username); loadLoopFiles(); }
+    else showLoopSignedOut();
+  } catch { showLoopSignedOut(); }
+}
+
+function showLoopSignedOut() {
+  document.getElementById('loopSignedOut').style.display = 'flex';
+  document.getElementById('loopSignedIn').classList.remove('visible');
+  document.getElementById('loopDeviceCode').classList.remove('visible');
+}
+
+function showLoopSignedIn(username) {
+  document.getElementById('loopSignedOut').style.display = 'none';
+  document.getElementById('loopDeviceCode').classList.remove('visible');
+  document.getElementById('loopSignedIn').classList.add('visible');
+  document.getElementById('loopUsername').textContent = username || 'Microsoft Account';
+}
+
+async function loopSignIn() {
+  try {
+    setStatus('Starting Microsoft sign-in…', '');
+    const res = await fetch('http://localhost:5001/loop/signin', { method: 'POST' });
+    const data = await res.json();
+    if (data.status === 'device_code') {
+      document.getElementById('loopSignedOut').style.display = 'none';
+      document.getElementById('loopDeviceCode').classList.add('visible');
+      document.getElementById('loopUserCode').textContent = data.userCode || '———';
+      document.getElementById('loopVerifyUrl').textContent = data.verificationUri || 'microsoft.com/devicelogin';
+      setStatus('Enter the code above at the Microsoft link to sign in.', '');
+      if (loopPollInterval) clearInterval(loopPollInterval);
+      loopPollInterval = setInterval(async () => {
+        try {
+          const poll = await fetch('http://localhost:5001/loop/token-ready');
+          const pd = await poll.json();
+          if (pd.ready) {
+            clearInterval(loopPollInterval); loopPollInterval = null;
+            const sr = await fetch('http://localhost:5001/loop/status');
+            const sd = await sr.json();
+            showLoopSignedIn(sd.username);
+            loadLoopFiles();
+            setStatus('Signed in to Microsoft!', 'success');
+          }
+        } catch {}
+      }, 2000);
+    }
+  } catch (e) { setStatus('Sign-in failed: ' + e.message, 'error'); showLoopSignedOut(); }
+}
+
+async function loopSignOut() {
+  await fetch('http://localhost:5001/loop/signout', { method: 'POST' });
+  selectedLoopFile = null;
+  document.getElementById('btnGenerateLoop').disabled = true;
+  showLoopSignedOut();
+  setStatus('Signed out of Microsoft.', '');
+}
+
+async function loadLoopFiles() {
+  const list = document.getElementById('loopFilesList');
+  list.innerHTML = '<div class="loop-empty">Loading…</div>';
+  selectedLoopFile = null;
+  document.getElementById('btnGenerateLoop').disabled = true;
+  try {
+    const res = await fetch('http://localhost:5001/loop/files');
+    const data = await res.json();
+    if (data.status !== 'Success') throw new Error(data.error);
+    if (!data.files.length) { list.innerHTML = '<div class="loop-empty">No Loop files found.</div>'; return; }
+    list.innerHTML = data.files.map(f => `
+      <div class="loop-file-row" id="lf-${esc(f.id)}" onclick="selectLoopFile('${esc(f.id)}','${esc(f.name)}')">
+        <div class="loop-file-icon"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+        <span class="loop-file-name">${esc(f.name)}</span>
+        <span class="loop-file-date">${f.lastModifiedDateTime ? fmtDate(f.lastModifiedDateTime) : ''}</span>
+      </div>`).join('');
+  } catch (e) { list.innerHTML = `<div class="loop-empty" style="color:var(--red)">${esc(e.message)}</div>`; }
+}
+
+function selectLoopFile(id, name) {
+  document.querySelectorAll('.loop-file-row').forEach(r => r.classList.remove('selected'));
+  const row = document.getElementById('lf-' + id);
+  if (row) row.classList.add('selected');
+  selectedLoopFile = { id, name };
+  document.getElementById('btnGenerateLoop').disabled = false;
+}
+
+async function generateNotesFromLoop() {
+  if (!selectedLoopFile) { setStatus('Select a Loop file first.', 'error'); return; }
+  const prompt = document.getElementById('promptText').value.trim();
+  if (!prompt) { setStatus('Enter a prompt first.', 'error'); return; }
+  document.getElementById('workspace').classList.remove('visible');
+  document.getElementById('progressCard').classList.add('active');
+  setProgress(0, 'Starting…'); setStatus('', ''); startElapsed(); window.currentId = null;
+  const jobId = Date.now().toString();
+  if (eventSource) eventSource.close();
+  eventSource = new EventSource(`http://localhost:5001/progress/${jobId}`);
+  eventSource.onmessage = e => { const d = JSON.parse(e.data); if (d.done) { eventSource.close(); return; } setProgress(d.percent, d.message); };
+  eventSource.onerror = () => eventSource.close();
+  try {
+    const res = await fetch('http://localhost:5001/loop/read', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId: selectedLoopFile.id, fileName: selectedLoopFile.name, promptInstruction: prompt, jobId, outputLanguage: 'auto' }),
+    });
+    if (!res.ok) { const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })); throw new Error(err.error); }
+    const data = await res.json();
+    document.getElementById('progressCard').classList.remove('active'); stopElapsed();
+    if (data.status === 'Success') {
+      setProgress(100, 'Done!'); setStatus('Done!', 'success');
+      window.currentId = data.id;
+      lastWords = data.transcription?.wordTimestamps || [];
+      renderTranscript(lastWords);
+      if (data.notes) { renderNotes(data.notes); setTimeout(() => { const c = document.querySelector('.content'); if (c) c.scrollTop = 0; }, 100); }
+      loadSidebarHistory().then(() => {
+        const newEl = document.getElementById('sidebar-' + window.currentId);
+        if (newEl) { document.querySelectorAll('.history-entry').forEach(el => el.classList.remove('active')); newEl.classList.add('active'); }
+      });
+    } else { setStatus('Error: ' + data.error, 'error'); }
+  } catch (err) {
+    document.getElementById('progressCard').classList.remove('active'); stopElapsed();
+    setStatus('Error: ' + err.message, 'error');
+  }
+  if (eventSource) { eventSource.close(); eventSource = null; }
+}
+</script>
+</body>
+</html>
