@@ -13,3 +13,4 @@ storage/
 .env
 keytest.js
 .DS_Store
+ffmpeg
