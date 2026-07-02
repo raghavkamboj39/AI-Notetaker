@@ -100,23 +100,12 @@ body {
 .history-list-sidebar::-webkit-scrollbar { width: 4px; }
 .history-list-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-.history-label-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 10px 6px;
-}
 .history-label {
   font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--text-3);
+  padding: 12px 10px 6px;
 }
-.history-viewall {
-  font-size: 10.5px; font-weight: 600; color: var(--text-3);
-  background: none; border: none; cursor: pointer; font-family: inherit;
-  padding: 0; transition: color 0.12s;
-}
-.history-viewall:hover { color: var(--text); }
-
 .history-entry {
-  display: flex; align-items: center; gap: 6px;
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -124,7 +113,6 @@ body {
 }
 .history-entry:hover { background: var(--surface-2); }
 .history-entry.active { background: var(--accent-soft); }
-.history-entry-main { flex: 1; min-width: 0; }
 .history-entry-name {
   font-size: 12px; font-weight: 500; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -561,18 +549,6 @@ body {
   cursor: pointer; font-family: inherit; transition: all 0.12s;
 }
 .hbtn:hover { background: var(--text); color: #fff; border-color: var(--text); }
-.hbtn.delete { color: var(--red); border-color: #fecaca; }
-.hbtn.delete:hover { background: var(--red); color: #fff; border-color: var(--red); }
-
-.history-entry-del {
-  flex-shrink: 0; width: 20px; height: 20px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 4px; background: none; border: none; cursor: pointer;
-  color: var(--text-3); opacity: 0; transition: all 0.12s;
-}
-.history-entry:hover .history-entry-del { opacity: 1; }
-.history-entry-del:hover { background: var(--red-bg); color: var(--red); }
-.history-entry-del svg { width: 11px; height: 11px; stroke: currentColor; stroke-width: 2; fill: none; }
 </style>
 </head>
 <body>
@@ -589,7 +565,7 @@ body {
     </div>
 
     <nav class="nav">
-      <button class="nav-item active" id="navNew" onclick="startNewNote()">
+      <button class="nav-item active" id="navNew" onclick="showView('new')">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         New note
       </button>
@@ -599,10 +575,7 @@ body {
       </button>
     </nav>
 
-    <div class="history-label-row">
-      <div class="history-label">Recent</div>
-      <button class="history-viewall" onclick="showView('history')">View all</button>
-    </div>
+    <div class="history-label">Recent</div>
     <div class="history-list-sidebar" id="sidebarHistory"></div>
   </aside>
 
@@ -685,38 +658,24 @@ body {
 
           <!-- Loop panel -->
           <div id="panelLoop" style="display:none;flex-direction:column;gap:12px;">
-            <div id="loopSignedOut" class="loop-signin-box">
-              <svg viewBox="0 0 24 24" style="width:36px;height:36px;stroke:#2563eb;stroke-width:1.5;fill:none;opacity:0.7"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-              <p>Connect your Microsoft account to read Loop files directly from OneDrive</p>
-              <button class="btn btn-blue" onclick="loopSignIn()">
-                <svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-                Sign in with Microsoft
+            <div class="drop-zone" id="loopDropZone" onclick="document.getElementById('loopFileInput').click()">
+              <div class="drop-icon">
+                <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              </div>
+              <p class="drop-title">Drop .loop file or click to browse</p>
+              <small class="drop-hint">Export your Loop page from Microsoft Loop, then upload it here</small>
+            </div>
+            <div class="file-pill" id="loopFilePill">
+              <span class="file-pill-name" id="loopFilePillName"></span>
+              <button class="file-pill-remove" onclick="removeLoopFile(event)">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
-            <div id="loopDeviceCode" class="loop-device-code-box">
-              <div class="loop-device-url">Go to: <strong id="loopVerifyUrl">microsoft.com/devicelogin</strong></div>
-              <div class="loop-device-code" id="loopUserCode">———</div>
-              <div class="loop-device-code-hint">Enter this code at the link above, then sign in with your Microsoft account.</div>
-            </div>
-            <div id="loopSignedIn" class="loop-signed-in-box">
-              <div class="loop-user-pill">
-                <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:#16a34a;stroke-width:2;fill:none;flex-shrink:0"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                <span id="loopUsername">Signed in</span>
-                <button class="loop-signout-btn" onclick="loopSignOut()">Sign out</button>
-              </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;">
-                <div class="card-label" style="margin:0">Your Loop files</div>
-                <button class="loop-refresh-btn" onclick="loadLoopFiles()">
-                  <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                  Refresh
-                </button>
-              </div>
-              <div class="loop-files-list" id="loopFilesList"><div class="loop-empty">Loading files…</div></div>
-              <button class="btn-generate" id="btnGenerateLoop" onclick="generateNotesFromLoop()" disabled>
-                <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                Generate notes from selected file
-              </button>
-            </div>
+            <input type="file" id="loopFileInput" accept=".loop,.zip" style="display:none">
+            <button class="btn-generate" id="btnGenerateLoop" onclick="generateNotesFromLoopFile()" disabled>
+              <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Generate notes from Loop file
+            </button>
           </div>
 
           <!-- Paste panel -->
@@ -844,8 +803,6 @@ document.addEventListener('DOMContentLoaded', () => {
     else setStatus('Unsupported file type.', 'error');
   });
 
-  checkLoopStatus();
-
   document.getElementById('pasteText')?.addEventListener('input', () => {
     document.getElementById('btnGeneratePaste').disabled =
       document.getElementById('pasteText').value.trim().length < 10;
@@ -863,66 +820,6 @@ function showView(view) {
   document.getElementById('navNew').classList.toggle('active', view === 'new');
   document.getElementById('navHistory').classList.toggle('active', view === 'history');
   if (view === 'history') loadHistoryFull();
-}
-
-/**
- * Called only when the user explicitly clicks the "New note" nav button.
- * Fully resets the New Note view back to a blank slate — clears any
- * loaded notes/transcript from a previously viewed history item, resets
- * the active file/recording state, and clears status/progress UI.
- * (loadSummaryInline / loadTranscriptInline call showView('new') directly
- * and intentionally do NOT go through this reset.)
- */
-function startNewNote() {
-  // Clear workspace (notes + transcript)
-  document.getElementById('workspace').classList.remove('visible');
-  document.getElementById('notesBody').innerHTML = '';
-  document.getElementById('transcriptBlocks').innerHTML = '';
-  document.getElementById('transcriptArea').classList.remove('open');
-  document.getElementById('transcriptToggle').classList.remove('open');
-  document.getElementById('transcriptLabel').textContent = 'Show transcript';
-  document.getElementById('workspaceTitle').textContent = 'Smart notes';
-
-  // Clear current record id + in-memory data
-  window.currentId = null;
-  lastNotes = null;
-  lastWords = [];
-
-  // Clear any in-flight upload/recording state
-  uploadedFile = null;
-  audioBlob = null;
-  audioChunks = [];
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop();
-    mediaRecorder.stream.getTracks().forEach(t => t.stop());
-  }
-  clearInterval(recInterval);
-  document.getElementById('btnStart').disabled = false;
-  document.getElementById('btnStop').disabled = true;
-  document.getElementById('recStatus').classList.remove('active');
-
-  // Clear file picker UI
-  document.getElementById('fileInput').value = '';
-  document.getElementById('filePill').classList.remove('visible');
-  document.getElementById('btnGenerate').disabled = true;
-
-  // Clear paste tab
-  const pasteEl = document.getElementById('pasteText');
-  if (pasteEl) pasteEl.value = '';
-  document.getElementById('btnGeneratePaste').disabled = true;
-
-  // Clear progress + status
-  document.getElementById('progressCard').classList.remove('active');
-  stopElapsed();
-  setStatus('', '');
-
-  // Reset to the Record tab
-  switchTab('record');
-
-  // Clear active highlight in sidebar history
-  document.querySelectorAll('.history-entry').forEach(el => el.classList.remove('active'));
-
-  showView('new');
 }
 
 // ─────────────────────────────────────────────
@@ -964,6 +861,7 @@ async function startRecording() {
     document.getElementById('btnStop').disabled = false;
     document.getElementById('recStatus').classList.add('active');
     recSecs = 0;
+    clearInterval(recInterval);
     recInterval = setInterval(() => {
       recSecs++;
       const m = Math.floor(recSecs / 60), s = recSecs % 60;
@@ -1284,15 +1182,10 @@ async function loadSidebarHistory() {
     const data = await res.json();
     const container = document.getElementById('sidebarHistory');
     if (!data.history.length) { container.innerHTML = ''; return; }
-    container.innerHTML = data.history.slice(0, 5).map(item => `
-      <div class="history-entry" id="sidebar-${item.id}">
-        <div class="history-entry-main" onclick="loadSummaryInline('${item.id}')">
-          <div class="history-entry-name">${esc(item.fileName)}</div>
-          <div class="history-entry-date">${item.createdAt ? fmtDate(item.createdAt) : ''}</div>
-        </div>
-        <button class="history-entry-del" title="Delete" onclick="deleteHistoryItem(event, '${item.id}')">
-          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-        </button>
+    container.innerHTML = data.history.slice(0, 12).map(item => `
+      <div class="history-entry" onclick="loadSummaryInline('${item.id}')">
+        <div class="history-entry-name">${esc(item.fileName)}</div>
+        <div class="history-entry-date">${item.createdAt ? fmtDate(item.createdAt) : ''}</div>
       </div>
     `).join('');
   } catch {}
@@ -1311,61 +1204,19 @@ async function loadHistoryFull() {
       return;
     }
     container.innerHTML = data.history.map(item => `
-      <div class="history-card" id="historycard-${item.id}">
+      <div class="history-card">
         <div>
           <div class="history-card-name">${esc(item.fileName)}</div>
           <div class="history-card-date">${item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}</div>
         </div>
         <div class="history-card-actions">
-          <button class="hbtn" onclick="event.stopPropagation(); loadTranscriptInline('${item.id}')">Transcript</button>
-          <button class="hbtn" onclick="event.stopPropagation(); loadSummaryInline('${item.id}')">Notes</button>
-          <button class="hbtn delete" onclick="deleteHistoryItem(event, '${item.id}')">Delete</button>
+          <button class="hbtn" onclick="loadTranscriptInline('${item.id}')">Transcript</button>
+          <button class="hbtn" onclick="loadSummaryInline('${item.id}')">Notes</button>
         </div>
       </div>
     `).join('');
   } catch {
     container.innerHTML = '<p style="color:var(--red);font-size:13px">Failed to load history.</p>';
-  }
-}
-
-/**
- * Delete a transcript/summary record. Used by both the sidebar Recent
- * list and the full History page. Confirms first, then calls the
- * backend DELETE route and removes the item from whichever view(s) it
- * appears in without a full reload.
- */
-async function deleteHistoryItem(e, id) {
-  if (e) e.stopPropagation();
-  const ok = window.confirm('Delete this recording and its notes? This cannot be undone.');
-  if (!ok) return;
-
-  try {
-    const res = await fetch(`http://localhost:5001/history/${id}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.status !== 'Success') throw new Error(data.error || 'Delete failed.');
-
-    // Remove from sidebar if present
-    const sidebarEl = document.getElementById(`sidebar-${id}`);
-    if (sidebarEl) sidebarEl.remove();
-
-    // Remove from full history view if present
-    const cardEl = document.getElementById(`historycard-${id}`);
-    if (cardEl) cardEl.remove();
-
-    // If the deleted note is currently open in the workspace, clear it
-    if (window.currentId === id) {
-      startNewNote();
-    }
-
-    setStatus('Recording deleted.', '');
-
-    // Refresh sidebar to backfill the 5-item list and refresh full
-    // history's empty state if that was the last item.
-    loadSidebarHistory();
-    const historyView = document.getElementById('viewHistory');
-    if (historyView.style.display !== 'none') loadHistoryFull();
-  } catch (err) {
-    setStatus('Failed to delete: ' + err.message, 'error');
   }
 }
 
@@ -1443,131 +1294,86 @@ async function generateNotesPaste() {
   uploadedFile = null;
 }
 
-// ── Loop ──
-let selectedLoopFile = null;
-let loopPollInterval = null;
+// ── Loop (file upload — no Microsoft sign-in required) ──
+let loopUploadedFile = null;
 
-async function checkLoopStatus() {
-  try {
-    const res = await fetch('http://localhost:5001/loop/status');
-    const data = await res.json();
-    if (data.status === 'signed_in') { showLoopSignedIn(data.username); loadLoopFiles(); }
-    else showLoopSignedOut();
-  } catch { showLoopSignedOut(); }
-}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('loopFileInput').addEventListener('change', e => {
+    if (e.target.files[0]) setLoopFile(e.target.files[0]);
+  });
 
-function showLoopSignedOut() {
-  document.getElementById('loopSignedOut').style.display = 'flex';
-  document.getElementById('loopSignedIn').classList.remove('visible');
-  document.getElementById('loopDeviceCode').classList.remove('visible');
-}
+  const ldz = document.getElementById('loopDropZone');
+  ldz.addEventListener('dragover', e => { e.preventDefault(); ldz.classList.add('dragover'); });
+  ldz.addEventListener('dragleave', () => ldz.classList.remove('dragover'));
+  ldz.addEventListener('drop', e => {
+    e.preventDefault(); ldz.classList.remove('dragover');
+    const f = e.dataTransfer.files[0];
+    if (!f) return;
+    if (/\.(loop|zip)$/i.test(f.name)) setLoopFile(f);
+    else setStatus('Please drop a .loop or .zip file.', 'error');
+  });
+});
 
-function showLoopSignedIn(username) {
-  document.getElementById('loopSignedOut').style.display = 'none';
-  document.getElementById('loopDeviceCode').classList.remove('visible');
-  document.getElementById('loopSignedIn').classList.add('visible');
-  document.getElementById('loopUsername').textContent = username || 'Microsoft Account';
-}
-
-async function loopSignIn() {
-  try {
-    setStatus('Starting Microsoft sign-in…', '');
-    const res = await fetch('http://localhost:5001/loop/signin', { method: 'POST' });
-    const data = await res.json();
-    if (data.status === 'device_code') {
-      document.getElementById('loopSignedOut').style.display = 'none';
-      document.getElementById('loopDeviceCode').classList.add('visible');
-      document.getElementById('loopUserCode').textContent = data.userCode || '———';
-      document.getElementById('loopVerifyUrl').textContent = data.verificationUri || 'microsoft.com/devicelogin';
-      setStatus('Enter the code above at the Microsoft link to sign in.', '');
-      if (loopPollInterval) clearInterval(loopPollInterval);
-      loopPollInterval = setInterval(async () => {
-        try {
-          const poll = await fetch('http://localhost:5001/loop/token-ready');
-          const pd = await poll.json();
-          if (pd.ready) {
-            clearInterval(loopPollInterval); loopPollInterval = null;
-            const sr = await fetch('http://localhost:5001/loop/status');
-            const sd = await sr.json();
-            showLoopSignedIn(sd.username);
-            loadLoopFiles();
-            setStatus('Signed in to Microsoft!', 'success');
-          }
-        } catch {}
-      }, 2000);
-    }
-  } catch (e) { setStatus('Sign-in failed: ' + e.message, 'error'); showLoopSignedOut(); }
-}
-
-async function loopSignOut() {
-  await fetch('http://localhost:5001/loop/signout', { method: 'POST' });
-  selectedLoopFile = null;
-  document.getElementById('btnGenerateLoop').disabled = true;
-  showLoopSignedOut();
-  setStatus('Signed out of Microsoft.', '');
-}
-
-async function loadLoopFiles() {
-  const list = document.getElementById('loopFilesList');
-  list.innerHTML = '<div class="loop-empty">Loading…</div>';
-  selectedLoopFile = null;
-  document.getElementById('btnGenerateLoop').disabled = true;
-  try {
-    const res = await fetch('http://localhost:5001/loop/files');
-    const data = await res.json();
-    if (data.status !== 'Success') throw new Error(data.error);
-    if (!data.files.length) { list.innerHTML = '<div class="loop-empty">No Loop files found.</div>'; return; }
-    list.innerHTML = data.files.map(f => `
-      <div class="loop-file-row" id="lf-${esc(f.id)}" onclick="selectLoopFile('${esc(f.id)}','${esc(f.name)}')">
-        <div class="loop-file-icon"><svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
-        <span class="loop-file-name">${esc(f.name)}</span>
-        <span class="loop-file-date">${f.lastModifiedDateTime ? fmtDate(f.lastModifiedDateTime) : ''}</span>
-      </div>`).join('');
-  } catch (e) { list.innerHTML = `<div class="loop-empty" style="color:var(--red)">${esc(e.message)}</div>`; }
-}
-
-function selectLoopFile(id, name) {
-  document.querySelectorAll('.loop-file-row').forEach(r => r.classList.remove('selected'));
-  const row = document.getElementById('lf-' + id);
-  if (row) row.classList.add('selected');
-  selectedLoopFile = { id, name };
+function setLoopFile(f) {
+  loopUploadedFile = f;
+  document.getElementById('loopFilePillName').textContent = f.name;
+  document.getElementById('loopFilePill').classList.add('visible');
   document.getElementById('btnGenerateLoop').disabled = false;
+  setStatus('Loop file ready — click Generate notes.', 'success');
 }
 
-async function generateNotesFromLoop() {
-  if (!selectedLoopFile) { setStatus('Select a Loop file first.', 'error'); return; }
+function removeLoopFile(e) {
+  e.stopPropagation();
+  loopUploadedFile = null;
+  document.getElementById('loopFileInput').value = '';
+  document.getElementById('loopFilePill').classList.remove('visible');
+  document.getElementById('btnGenerateLoop').disabled = true;
+  setStatus('', '');
+}
+
+async function generateNotesFromLoopFile() {
+  if (!loopUploadedFile) { setStatus('Select a Loop file first.', 'error'); return; }
   const prompt = document.getElementById('promptText').value.trim();
   if (!prompt) { setStatus('Enter a prompt first.', 'error'); return; }
+
   document.getElementById('workspace').classList.remove('visible');
   document.getElementById('progressCard').classList.add('active');
   setProgress(0, 'Starting…'); setStatus('', ''); startElapsed(); window.currentId = null;
+
   const jobId = Date.now().toString();
   if (eventSource) eventSource.close();
   eventSource = new EventSource(`http://localhost:5001/progress/${jobId}`);
   eventSource.onmessage = e => { const d = JSON.parse(e.data); if (d.done) { eventSource.close(); return; } setProgress(d.percent, d.message); };
   eventSource.onerror = () => eventSource.close();
+
+  const form = new FormData();
+  form.append('audio', loopUploadedFile);
+  form.append('promptInstruction', prompt);
+  form.append('jobId', jobId);
+  form.append('outputLanguage', 'auto');
+
   try {
-    const res = await fetch('http://localhost:5001/loop/read', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemId: selectedLoopFile.id, fileName: selectedLoopFile.name, promptInstruction: prompt, jobId, outputLanguage: 'auto' }),
-    });
-    if (!res.ok) { const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })); throw new Error(err.error); }
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 60 * 60 * 1000);
+    const res = await fetch('http://localhost:5001/upload', { method: 'POST', body: form, signal: ctrl.signal });
+    clearTimeout(tid);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      throw new Error(err.error || `Server error ${res.status}`);
+    }
     const data = await res.json();
     document.getElementById('progressCard').classList.remove('active'); stopElapsed();
     if (data.status === 'Success') {
-      setProgress(100, 'Done!'); setStatus('Done!', 'success');
+      setProgress(100, 'Done!'); setStatus(`Done in ${data.processingTime}s`, 'success');
       window.currentId = data.id;
       lastWords = data.transcription?.wordTimestamps || [];
       renderTranscript(lastWords);
       if (data.notes) { renderNotes(data.notes); setTimeout(() => { const c = document.querySelector('.content'); if (c) c.scrollTop = 0; }, 100); }
-      loadSidebarHistory().then(() => {
-        const newEl = document.getElementById('sidebar-' + window.currentId);
-        if (newEl) { document.querySelectorAll('.history-entry').forEach(el => el.classList.remove('active')); newEl.classList.add('active'); }
-      });
+      loadSidebarHistory();
     } else { setStatus('Error: ' + data.error, 'error'); }
   } catch (err) {
     document.getElementById('progressCard').classList.remove('active'); stopElapsed();
-    setStatus('Error: ' + err.message, 'error');
+    setStatus(err.name === 'AbortError' ? 'Request timed out.' : 'Error: ' + err.message, 'error');
   }
   if (eventSource) { eventSource.close(); eventSource = null; }
 }
